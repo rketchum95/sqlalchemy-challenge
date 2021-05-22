@@ -22,8 +22,12 @@ Base.classes.keys()
 session = Session(engine)
 
 #Date values for lookups:
-Last_date = session.query(func.max(Measurement.date)).all()
-prior_year_date = dt.date(2017,8,23) - dt.timedelta(days=365)
+last_date = session.query(func.max(Measurement.date)).all()
+last_date = list(np.ravel(last_date))[0]
+last_date=dt.datetime.strptime(last_date,'%Y-%m-%d')
+last_year=int(dt.datetime.strftime(last_date,'%Y'))
+last_month=int(dt.datetime.strftime(last_date,'%m'))
+last_day=int(dt.datetime.strftime(last_date,'%d'))
 
 #Flask setup
 app = Flask(__name__)
@@ -37,7 +41,10 @@ def home():
           f"/api/v1.0/stations <br/>"
           f"/api/v1.0/precipitation <br/>"
           f"/api/v1.0/temperatures <br/>"
-          f"/api/v1.0/<start> <br/>")
+          f"/api/v1.0/startdatesearch/<StartDate> <br/>"
+           f"/api/v1.0/daterangesearch/<StartDate>/<EndDate> <br/>"
+          f"*    Available dates: 2010-01-01 to 2017-08-23<br/>"
+          f"*    For date searches, enter date in format: yyyy-mm-dd")
           
 @app.route("/api/v1.0/stations")
 def stations():
@@ -81,10 +88,42 @@ def temperatures():
     
     return jsonify(tempdata)
 
+@app.route("/api/v1.0/startdatesearch/<StartDate>")
+def date1(StartDate):
+    sel = [Measurement.date, func.min(Measurement.tobs), func.max(Measurement.tobs), func.avg(Measurement.tobs)] 
+    results = session.query(*sel)\
+        .filter(Measurement.date>=StartDate)\
+        .group_by(Measurement.date).all()
+    
+    search_dates=[]
+    
+    for result in results:
+        start_dict = {}
+        start_dict["Date"] = result[0]
+        start_dict["Low Temp"] = result[1]
+        start_dict["High Temp"] = result[2]
+        start_dict["Ave Temp"] = result[3]
+        search_dates.append(start_dict)
+    return jsonify(search_dates)  
 
-
-@app.route("/api/v1.0/<start>")
-
+@app.route("/api/v1.0/daterangesearch/<StartDate>/<EndDate>")
+def date2(StartDate,EndDate):
+    sel = [Measurement.date, func.min(Measurement.tobs), func.max(Measurement.tobs), func.avg(Measurement.tobs)] 
+    results = session.query(*sel)\
+        .filter(Measurement.date>=StartDate)\
+        .filter(Measurement.date<=EndDate)\
+        .group_by(Measurement.date).all()
+    
+    search_dates=[]
+    
+    for result in results:
+        start_dict = {}
+        start_dict["Date"] = result[0]
+        start_dict["Low Temp"] = result[1]
+        start_dict["High Temp"] = result[2]
+        start_dict["Ave Temp"] = result[3]
+        search_dates.append(start_dict)
+    return jsonify(search_dates)        
 
 
 if __name__ == "__main__":
